@@ -1,0 +1,39 @@
+name: Build GSM 0.38 mod
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: ps2dev/ps2dev:latest
+    steps:
+      - name: Install git and tools
+        run: |
+          apk add --no-cache git make python3 zip || true
+          apt-get update && apt-get install -y git make python3 zip || true
+      - name: Get GSM 0.38 source
+        run: |
+          git clone --depth 1 https://github.com/dfmuniz74/gsm.git gsm
+      - name: Patch GSM 1080p preset
+        run: |
+          python3 patches/patch_gsm_1080p.py gsm/gsm_api.c
+      - name: Build GSM ELF
+        run: |
+          cd gsm
+          make clean || true
+          make
+          find . -maxdepth 3 -type f \( -iname '*.ELF' -o -iname '*.elf' \) -print
+      - name: Collect artifacts
+        run: |
+          mkdir -p out
+          find gsm -type f \( -iname '*.ELF' -o -iname '*.elf' \) -exec cp -v {} out/ \;
+          cp gsm/gsm_api.c out/gsm_api_patched.c
+          zip -r GSM_038_1080P_MOD_ELF.zip out
+      - name: Upload ELF
+        uses: actions/upload-artifact@v4
+        with:
+          name: GSM_038_1080P_MOD_ELF
+          path: GSM_038_1080P_MOD_ELF.zip
